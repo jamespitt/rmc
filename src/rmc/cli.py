@@ -13,7 +13,7 @@ from .exporters.svg import blocks_to_svg
 from .exporters.pdf import svg_to_pdf
 from .exporters.markdown import print_text
 from .exporters.excalidraw import blocks_to_excalidraw_str, blocks_to_excalidraw
-from .exporters.obsidian import excalidraw_to_obsidian
+from .exporters.obsidian import print_excalidraw_to_obsidian
 
 import logging
 
@@ -115,7 +115,7 @@ def convert_rm(filename: Path, to, fout):
         elif to == "obsidian":
             blocks = read_blocks(f)
             excalidrawDocument = blocks_to_excalidraw(blocks)
-            excalidraw_to_obsidian(excalidrawDocument)
+            print_excalidraw_to_obsidian(excalidrawDocument)
         elif to == "pdf":
             buf = io.StringIO()
             blocks = read_blocks(f)
