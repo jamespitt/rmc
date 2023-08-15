@@ -7,14 +7,15 @@ from pathlib import Path
 from contextlib import contextmanager
 import click
 from rmscene.scene_stream import read_blocks, write_blocks, simple_text_document
-from rmscene.scene_items import ParagraphStyle
+#from rmscene.scene_items import ParagraphStyle
 
 from .exporters.svg import blocks_to_svg
 from .exporters.pdf import svg_to_pdf
 from .exporters.markdown import print_text
+from .exporters.excalidraw import blocks_to_excalidraw_str, blocks_to_excalidraw
+from .exporters.obsidian import excalidraw_to_obsidian
 
 import logging
-
 
 @click.command
 @click.version_option()
@@ -27,7 +28,7 @@ def cli(verbose, from_, to, output, input):
     """Convert to/from reMarkable v6 files.
 
     Available FORMATs are: `rm` (reMarkable file), `markdown`, `svg`, `pdf`,
-    `blocks`, `blocks-data`.
+    `blocks`, `blocks-data`, `excalidraw`.
 
     Formats `blocks` and `blocks-data` dump the internal structure of the `rm`
     file, with and without detailed data values respectively.
@@ -108,6 +109,13 @@ def convert_rm(filename: Path, to, fout):
         elif to == "svg":
             blocks = read_blocks(f)
             blocks_to_svg(blocks, fout)
+        elif to == "excalidraw":
+            blocks = read_blocks(f)
+            print(blocks_to_excalidraw_str(blocks))
+        elif to == "obsidian":
+            blocks = read_blocks(f)
+            excalidrawDocument = blocks_to_excalidraw(blocks)
+            excalidraw_to_obsidian(excalidrawDocument)
         elif to == "pdf":
             buf = io.StringIO()
             blocks = read_blocks(f)
