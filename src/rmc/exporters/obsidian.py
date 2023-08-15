@@ -28,7 +28,7 @@ def excalidraw_to_obsidian(document: ExcalidrawDocument):
             text_elements.append(element.text)
     
     return template.format(text_elements="\n\n".join(text_elements),
-                          excalidraw_json=excalidraw_str))
+                          excalidraw_json=excalidraw_str)
 
 def print_excalidraw_to_obsidian(document: ExcalidrawDocument):
     print(excalidraw_to_obsidian(document))
