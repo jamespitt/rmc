@@ -10,11 +10,10 @@ import random
 import json
 import time
 import dataclasses
-
+from enum import Enum
 from typing import Iterable
 
 from rmscene import (
-
     Block,
     RootTextBlock,
     SceneLineItemBlock,
@@ -25,12 +24,46 @@ from rmscene import (
     TreeNodeBlock,
     SceneGroupItemBlock
 )
+from rmscene.scene_items import Pen
 
 _logger = logging.getLogger(__name__)
 
 SCREEN_WIDTH = 1404
 SCREEN_HEIGHT = 1872
 XPOS_SHIFT = SCREEN_WIDTH / 2
+
+# Based Hexcodes based on the HTML Colornames
+class HexPenColors(Enum):
+    
+    BLACK = "#000000"
+    WHITE = "#FFFFFF"
+    
+    GRAY = "#D3D3D3"
+
+    RED = "#FF0000"
+    GREEN = "#008000"
+    BLUE = "#0000FF"
+    
+    YELLOW = "#FFFF00"    
+    PINK = "#FFC0CB"
+
+    GRAY_OVERLAP = "#A9A9A9" #DarkGray
+
+# Default factory functions    
+def randomId():
+    """Create a id, found something similar (nanoid) in the excalidraw code"""
+    return ''.join(random.choice(string.ascii_letters+string.digits+"-_") for i in range(21)) #Nanoid 
+
+def randomInt():
+    """Create a random integer between 0, 1024, found it in the excalidraw code"""
+    return random.randint(0, 1024)
+
+def randomNonce():
+    """Create a random integer, found it in the excalidraw code"""
+    return round(random.random() * 2 ** 31)
+
+def timestampInMiliseconds():
+    return round(time.time()*1000)
 
 @dataclasses.dataclass()
 class ExcalidrawDocument:
@@ -43,18 +76,6 @@ class ExcalidrawDocument:
             'viewBackgroundColor': '#ffffff'
         })
     files: dict = dataclasses.field(default_factory=lambda: {})
-
-def randomId():
-    return ''.join(random.choice(string.ascii_letters+string.digits+"-_") for i in range(21)) #Nanoid 
-
-def randomInt():
-    return random.randint(0, 1024)
-
-def randomNonce():
-    return round(random.random() * 2 ** 31)
-
-def timestampInMiliseconds():
-    return round(time.time()*1000)
 
 @dataclasses.dataclass()
 class ExcalidrawElement:
@@ -120,13 +141,22 @@ class ExcalidrawFreedrawElement(ExcalidrawElement):
 
 
 class DataclassJSONEncoder(json.JSONEncoder):
+    """Encoder to convert a Dataclass to JSON"""
     def default(self, o):
         if dataclasses.is_dataclass(o):
             return dataclasses.asdict(o)
         return super().default(o)
 
+
+
+# Conversion functions, this the control logic what to do
 def blocks_to_excalidraw(blocks: Iterable[Block])-> ExcalidrawDocument:
-    """Convert Blocks to Excalidraw."""
+    """Convert Blocks to Excalidraw.
+    
+    Currently supports:
+      - SceneLineItemBlock
+      - RootTextBlock
+    """
     
     document = ExcalidrawDocument()
     version = random.randint(1, 50)
@@ -148,32 +178,45 @@ def blocks_to_excalidraw(blocks: Iterable[Block])-> ExcalidrawDocument:
         
     return document
 
+# External functions called by CLI
 def excalidrawDocument_to_str(document: ExcalidrawDocument) -> str:
+    """Convert an ExcalidrawDocument to JSON string """
     return json.dumps(document, cls=DataclassJSONEncoder, indent=4)
 
 def blocks_to_excalidraw_str(blocks: Iterable[Block]) -> str:
+    "Convert blocks to excalidraw and return it as pretty JSON string"
     return excalidrawDocument_to_str(blocks_to_excalidraw(blocks))
 
+# Conversion of a block to an specific element functions
 def draw_stroke(block) -> ExcalidrawFreedrawElement:
+    """Draw a pen stroke"""
     _logger.debug('Processing: SceneLineItemBlock')
-    # make sure the object is not empty
-
+    
+    # Function always returns an ExcalidrawFreedrawElement
     excalidrawStroke = ExcalidrawFreedrawElement()
     if block.item.value is None:
         return excalidrawStroke
+    
+    # Eraser strokes are stored a penstrokes
+    if block.item.value.tool == Pen.ERASER:
+        excalidrawStroke.isDeleted = True
+    
+    # Set the color of the stroke
+    excalidrawStroke.strokeColor = HexPenColors[block.item.value.color.name].value
 
+    # Proces the points
     absolutePoints = []
     pressures = []
     for _ , point in enumerate(block.item.value.points):
-        x = point.x 
-        y = point.y 
-        absolutePoints.append([x,y])
+        absolutePoints.append([point.x,point.y])
         pressures.append(point.pressure)
         #print(point.speed, point.direction, point.width, point.pressure)
 
+    # Set the start the of the stroke
     excalidrawStroke.x = absolutePoints[0][0]
     excalidrawStroke.y = absolutePoints[0][1]
     
+    # Create relative points based on the starting point
     relativePoints = []
     for ap in absolutePoints:
         x = ap[0] - excalidrawStroke.x
@@ -181,28 +224,34 @@ def draw_stroke(block) -> ExcalidrawFreedrawElement:
         relativePoints.append([x,y])
 
     excalidrawStroke.points = relativePoints
+
+    # Take the pressure values as is, Excalidraw seems to use the same scale
     excalidrawStroke.pressures = pressures
     return excalidrawStroke
 
 
 def draw_text(block) -> ExcalidrawTextElement:
-    # Excalidraw doesnt support bold / italic, skipping the textformattig
+    """Draw a textblock
+    
+    Note: Excalidraw doesnt support bold / italic, skipping the textformattig
+    """
     _logger.debug('Processing: RootTextBlock')
 
+    # Combine the separate text elements into one piece of text
     text = "".join([i[1] for i in block.value.items.items()])
     
+    # Calculate the position
     x = block.value.pos_x + XPOS_SHIFT
     y = block.value.pos_y
-    width = round(block.value.width)
+    width = round(block.value.width) # We take this for granted, seems to be on the big side
+
     # To get line height in px, multiply with font size. Multiply by number of lines
     # https://github.com/excalidraw/excalidraw/blob/master/src/element/types.ts#L161
     height = ExcalidrawTextElement.fontSize * ExcalidrawTextElement.lineHeight * len(text.splitlines()) 
     
-    excalidrawText = ExcalidrawTextElement(x=round(x), 
+    return ExcalidrawTextElement(x=round(x), 
                                             y=round(y),
                                             width=round(width),
                                             height=round(height),
                                             text=text,
                                             originalText=text)
-    return excalidrawText
-
