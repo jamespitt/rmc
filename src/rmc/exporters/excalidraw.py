@@ -1,8 +1,4 @@
-"""Convert blocks to svg file.
-
-Code originally from https://github.com/lschwetlick/maxio through
-https://github.com/chemag/maxio .
-"""
+"""Convert blocks to Excalidraw file."""
 
 import logging
 import string
@@ -65,17 +61,6 @@ def randomNonce():
 def timestampInMiliseconds():
     return round(time.time()*1000)
 
-@dataclasses.dataclass()
-class ExcalidrawDocument:
-    type: str = "excalidraw"
-    version: int = 2
-    source: str = "excalidraw.py"
-    elements: list = dataclasses.field(default_factory=list)
-    appState: dict = dataclasses.field(default_factory=lambda: {
-            'gridSize': None,
-            'viewBackgroundColor': '#ffffff'
-        })
-    files: dict = dataclasses.field(default_factory=lambda: {})
 
 @dataclasses.dataclass()
 class ExcalidrawElement:
@@ -139,6 +124,35 @@ class ExcalidrawFreedrawElement(ExcalidrawElement):
     pressures: list = dataclasses.field(default_factory=list)
     simulatePressure: bool = True
 
+@dataclasses.dataclass(kw_only=True)
+class ExcalidrawImageElement(ExcalidrawElement):
+      type: str = "image"
+
+      fileId: str = ""
+      scale: list[int] = dataclasses.field(default_factory=lambda: [1,1])
+
+@dataclasses.dataclass()        
+class ExcalidrawFile():
+    id: str = dataclasses.field(default_factory=randomId) # the structure in the end needs to be <id>: { id: <id>, dateurl..} Not a list (mind blown)
+    mimeType: str =  "image/gif",
+    dataURL: str = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+    created: int = dataclasses.field(default_factory=timestampInMiliseconds)
+    lastRetrieved: int = dataclasses.field(default_factory=timestampInMiliseconds)
+
+@dataclasses.dataclass()
+class ExcalidrawDocument:
+    type: str = "excalidraw"
+    version: int = 2
+    source: str = "excalidraw.py"
+    elements: list = dataclasses.field(default_factory=list)
+    appState: dict = dataclasses.field(default_factory=lambda: {
+            'gridSize': None,
+            'viewBackgroundColor': '#ffffff'
+        })
+    files: dict = dataclasses.field(default_factory=lambda: {})
+
+    def addFile(self, file: ExcalidrawFile):
+        self.files[file.id] = dataclasses.asdict(file)
 
 class DataclassJSONEncoder(json.JSONEncoder):
     """Encoder to convert a Dataclass to JSON"""
@@ -146,7 +160,6 @@ class DataclassJSONEncoder(json.JSONEncoder):
         if dataclasses.is_dataclass(o):
             return dataclasses.asdict(o)
         return super().default(o)
-
 
 
 # Conversion functions, this the control logic what to do
