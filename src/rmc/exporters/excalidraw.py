@@ -3,6 +3,7 @@
 import logging
 import string
 import random
+import hashlib
 import json
 import time
 import dataclasses
@@ -49,6 +50,10 @@ class HexPenColors(Enum):
 def randomId():
     """Create a id, found something similar (nanoid) in the excalidraw code"""
     return ''.join(random.choice(string.ascii_letters+string.digits+"-_") for i in range(21)) #Nanoid 
+
+def randomFileId():
+    # Original Implementation does SHA1 by default and has a fallback to random range (Nanoid) of 40 chars.
+    return ''.join(random.choice(string.ascii_letters+string.digits+"-_") for i in range(40)) #Nanoid 
 
 def randomInt():
     """Create a random integer between 0, 1024, found it in the excalidraw code"""
@@ -128,17 +133,18 @@ class ExcalidrawFreedrawElement(ExcalidrawElement):
 class ExcalidrawImageElement(ExcalidrawElement):
       type: str = "image"
 
-      fileId: str = ""
       scale: list[int] = dataclasses.field(default_factory=lambda: [1,1])
+      fileId: str = ""
+      status: str = "saved"
 
 @dataclasses.dataclass()        
 class ExcalidrawFile():
-    id: str = dataclasses.field(default_factory=randomId) # the structure in the end needs to be <id>: { id: <id>, dateurl..} Not a list (mind blown)
+    id: str = dataclasses.field(default_factory=randomFileId) 
     mimeType: str =  "image/gif",
     dataURL: str = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
     created: int = dataclasses.field(default_factory=timestampInMiliseconds)
     lastRetrieved: int = dataclasses.field(default_factory=timestampInMiliseconds)
-
+ 
 @dataclasses.dataclass()
 class ExcalidrawDocument:
     type: str = "excalidraw"
@@ -152,6 +158,7 @@ class ExcalidrawDocument:
     files: dict = dataclasses.field(default_factory=lambda: {})
 
     def addFile(self, file: ExcalidrawFile):
+        # the structure in the end needs to be <id>: { id: <id>, dateurl..} Not a list (mind blown)
         self.files[file.id] = dataclasses.asdict(file)
 
 class DataclassJSONEncoder(json.JSONEncoder):
