@@ -11,6 +11,9 @@ tags: [excalidraw]
 
 # Text Elements
 {text_elements}
+
+# Embedded files
+
 %%
 # Drawing
 ```json
