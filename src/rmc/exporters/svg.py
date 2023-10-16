@@ -7,8 +7,11 @@ https://github.com/chemag/maxio .
 import logging
 import string
 from pathlib import Path
+import html
 
 from typing import Iterable
+
+from rmscene.text import TextDocument, TextSpan, CrdtStr, BoldSpan, ItalicSpan
 
 from rmscene import scene_items as si
 from rmscene import (
@@ -48,10 +51,12 @@ LINE_HEIGHTS = {
     # Tuned this line height using template grid -- it definitely seems to be
     # 71, rather than 70 or 72. Note however that it does interact a bit with
     # the initial text y-coordinate below.
-    si.TextFormat.PLAIN: 71,
-    si.TextFormat.BULLET: 35,
-    si.TextFormat.BOLD: 70,
-    si.TextFormat.HEADING: 150,
+    si.ParagraphStyle.PLAIN: 71,
+    si.ParagraphStyle.BASIC: 71,
+    si.ParagraphStyle.BULLET: 35,
+    si.ParagraphStyle.BULLET2: 35,
+    si.ParagraphStyle.BOLD: 70,
+    si.ParagraphStyle.HEADING: 150,
 
     # There appears to be another format code (value 0) which is used when the
     # text starts far down the page, which case it has a negative offset (line
@@ -202,7 +207,38 @@ def draw_stroke(item: si.Line, output):
     output.write('" />\n')
 
 
+def format_paragraph_html(line):
+
+    if isinstance(line, BoldSpan):
+        line_text, ids = format_paragraph_html(line.contents)
+        return "<b>"+line_text+"</b>", ids
+    elif isinstance(line, ItalicSpan):
+        line_text, ids = format_paragraph_html(line.contents)
+        return "<i>"+line_text+"</i>", ids
+    elif isinstance(line, list):
+        text = ""
+        all_ids = list()
+        for line_part in line:
+            line_text, ids = format_paragraph_html(line_part)
+            text += line_text
+            all_ids += ids
+        return text, all_ids
+    elif isinstance(line, str):
+        return html.escape(str(line)), list()
+    else:
+        return html.escape(str(line)), line.i
+
+def formatted_lines(doc:TextDocument):
+    lines = []
+    for p in doc.contents:
+        text, ids = format_paragraph_html(p.contents)
+        lines.append((p.style.value, text, ids))
+    return lines
+
+
+
 def draw_text(text: si.Text, output, anchor_pos):
+    doc = TextDocument.from_scene_item(text)
     output.write('    <g class="root-text" style="display:inline">\n')
 
     # add some style to get readable text
@@ -221,7 +257,7 @@ def draw_text(text: si.Text, output, anchor_pos):
     ''')
 
     y_offset = TEXT_TOP_Y
-    for fmt, line, ids in text.formatted_lines_with_ids():
+    for fmt, line, ids in formatted_lines(doc):
         y_offset += LINE_HEIGHTS[fmt]
 
         xpos = text.pos_x
