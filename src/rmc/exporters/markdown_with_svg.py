@@ -53,8 +53,6 @@ def formatted_lines(doc):
 # From rmscene tests: test_text_files.py (modfied version extract_doc)
 def extract_doc(fh):
     tree = read_tree(fh)
-    print(tree)
-    print(tree.ymin)
     if tree.root_text:
         print(tree.root_text)
         assert tree.root_text
