@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-rmscene = { path = "../rmscene/dist/rmscene-0.5.1.tar.gz", develop = true }
+rmscene = "^0.5.0"
 click = "^8.0"
 
 [tool.poetry.dev-dependencies]
