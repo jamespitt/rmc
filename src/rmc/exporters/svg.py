@@ -34,6 +34,14 @@ _logger = logging.getLogger(__name__)
 
 SCREEN_WIDTH = 1404
 SCREEN_HEIGHT = 1872
+SCREEN_DPI = 226
+
+SCALE = 72.0 / SCREEN_DPI
+
+PAGE_WIDTH_PT = SCREEN_WIDTH * SCALE
+PAGE_HEIGHT_PT = SCREEN_HEIGHT * SCALE
+X_SHIFT = PAGE_WIDTH_PT // 2
+
 
 SVG_HEADER = string.Template("""
 <svg xmlns="http://www.w3.org/2000/svg" height="$height" width="$width">
@@ -48,6 +56,9 @@ SVG_HEADER = string.Template("""
     </script>
 """)
 
+SVG_HEADER_SIMPLE = string.Template("""
+<svg xmlns="http://www.w3.org/2000/svg" height="$height" width="$width">
+""")
 
 XPOS_SHIFT = SCREEN_WIDTH / 2
 
@@ -56,6 +67,10 @@ XPOS_SHIFT = SCREEN_WIDTH / 2
 class SvgDocInfo:
     height: int
     width: int
+    ymin: int
+    ymax: int
+    xmin: int
+    xmax: int
     xpos_delta: float
     ypos_delta: float
 
@@ -66,6 +81,36 @@ def rm_to_svg(rm_path, svg_path, debug=0):
         blocks = read_blocks(infile)
         blocks_to_svg(blocks, outfile, debug)
 
+def block_to_svg(block: Block, output, svg_doc_info, debug=0):
+    """Convert Block to SVG."""
+
+
+
+    print(repr(svg_doc_info))
+
+    if (svg_doc_info.height==0 or svg_doc_info.width==0):
+        return
+
+    svg_doc_info.xpos_delta = 0-svg_doc_info.xmin
+    svg_doc_info.ypos_delta = 0-svg_doc_info.ymin
+
+
+
+    # add svg header
+    output.write(SVG_HEADER_SIMPLE.substitute(height=svg_doc_info.height, width=svg_doc_info.width))
+    output.write('\n')
+
+    # add svg page info
+    output.write('    <g id="p1" style="display:inline">\n')
+    output.write('        <filter id="blurMe"><feGaussianBlur in="SourceGraphic" stdDeviation="10" /></filter>\n')
+
+    draw_stroke(block, output, svg_doc_info, debug)
+
+    # Closing page group
+    output.write('    </g>\n')
+    # END notebook
+    output.write('</svg>\n')
+
 
 def blocks_to_svg(blocks: Iterable[Block], output, debug=0):
     """Convert Blocks to SVG."""
@@ -75,7 +120,7 @@ def blocks_to_svg(blocks: Iterable[Block], output, debug=0):
     blocks = list(blocks)
 
     # get document dimensions
-    svg_doc_info = get_dimensions(blocks, debug)
+    svg_doc_info = get_dimensions(blocks, SCREEN_WIDTH, SCREEN_HEIGHT, debug)
 
     # add svg header
     output.write(SVG_HEADER.substitute(height=svg_doc_info.height, width=svg_doc_info.width))
@@ -149,7 +194,7 @@ def draw_stroke(block, output, svg_doc_info, debug):
             # UPDATE stroke
             output.write('"/>\n')
             output.write('        <polyline ')
-            output.write(f'style="fill:none; stroke:{segment_color} ;stroke-width:{segment_width:.3f};opacity:{segment_opacity}" ')
+            output.write(f'style="fill:none; stroke:rgb(255,255,255);stroke-width:{segment_width:.3f};opacity:{segment_opacity}" ')
             output.write(f'stroke-linecap="{pen.stroke_linecap}" ')
             output.write('points="')
             if last_xpos != -1.:
@@ -247,7 +292,7 @@ def get_limits_text(block):
     return xmin, xmax, ymin, ymax
 
 
-def get_dimensions(blocks, debug):
+def get_dimensions(blocks, screen_width, screen_height, debug=0):
     # get block limits
     xmin, xmax, ymin, ymax = get_limits(blocks)
     if debug > 0:
@@ -262,8 +307,9 @@ def get_dimensions(blocks, debug):
     #ypos_delta = SCREEN_HEIGHT / 2
     ypos_delta = 0
     # adjust dimensions if needed
-    width = int(math.ceil(max(SCREEN_WIDTH, xmax - xmin if xmin is not None and xmax is not None else 0)))
-    height = int(math.ceil(max(SCREEN_HEIGHT, ymax - ymin if ymin is not None and ymax is not None else 0)))
+    width = int(math.ceil(max(screen_width, xmax - xmin if xmin is not None and xmax is not None else 0)))
+    height = int(math.ceil(max(screen_height, ymax - ymin if ymin is not None and ymax is not None else 0)))
     if debug > 0:
         print(f"height: {height} width: {width} xpos_delta: {xpos_delta} ypos_delta: {ypos_delta}")
-    return SvgDocInfo(height=height, width=width, xpos_delta=xpos_delta, ypos_delta=ypos_delta)
+    return SvgDocInfo(height=height, width=width, xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax, 
+                      xpos_delta=xpos_delta, ypos_delta=ypos_delta)

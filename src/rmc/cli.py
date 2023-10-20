@@ -12,6 +12,7 @@ from rmscene.scene_stream import read_blocks, write_blocks, simple_text_document
 from .exporters.svg import blocks_to_svg
 from .exporters.pdf import svg_to_pdf
 from .exporters.markdown import print_text
+from .exporters.markdown_with_svg import print_text_with_svg
 from .exporters.excalidraw import blocks_to_excalidraw_str, blocks_to_excalidraw
 from .exporters.obsidian import print_excalidraw_to_obsidian
 
@@ -106,6 +107,10 @@ def convert_rm(filename: Path, to, fout):
             pprint_file(f, fout, data=False)
         elif to == "markdown":
             print_text(f, fout)
+        elif to == "markdown_with_svg":
+            with open(filename, "rb") as f2:
+                blocks = read_blocks(f2)
+                print_text_with_svg(f, fout, blocks)
         elif to == "svg":
             blocks = read_blocks(f)
             blocks_to_svg(blocks, fout)

@@ -12,9 +12,11 @@ def formatted_lines(doc):
 # From rmscene tests: test_text_files.py (modfied version extract_doc)
 def extract_doc(fh):
     tree = read_tree(fh)
+    print(tree)
     if tree.root_text:
+        print(tree.root_text)
         assert tree.root_text
-        TextDocument.from_scene_item(tree.root_text)
+        return TextDocument.from_scene_item(tree.root_text)
     else:
         return None
 
