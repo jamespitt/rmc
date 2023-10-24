@@ -7,7 +7,7 @@ from rmscene.text import TextDocument
 
 # From rmscene tests: test_text_files.py
 def formatted_lines(doc):
-    return [(p.style.value, str(p)) for p in doc.contents]
+    return [(p.style.value, str(p), p.start_id) for p in doc.contents]
 
 # From rmscene tests: test_text_files.py (modfied version extract_doc)
 def extract_doc(fh):
@@ -26,7 +26,7 @@ def print_text(fin, fout):
     if doc is  None:
         print("No text content found")
     else:
-        for fmt, line in formatted_lines(doc):
+        for fmt, line, _ in formatted_lines(doc):
             if fmt == ParagraphStyle.BULLET:
                 print("- " + line, file=fout)
             elif fmt == ParagraphStyle.BULLET2:

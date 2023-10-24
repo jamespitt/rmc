@@ -6,13 +6,13 @@ import io
 from pathlib import Path
 from contextlib import contextmanager
 import click
-from rmscene.scene_stream import read_blocks, write_blocks, simple_text_document
-#from rmscene.scene_items import ParagraphStyle
+from rmscene.scene_stream import *
+from rmscene.scene_items import *
 
-from .exporters.svg import blocks_to_svg
+from .exporters.svg import rm_to_svg
 from .exporters.pdf import svg_to_pdf
 from .exporters.markdown import print_text
-from .exporters.markdown_with_svg import print_text_with_svg
+#from .exporters.markdown_with_svg import print_text_with_svg
 from .exporters.excalidraw import blocks_to_excalidraw_str, blocks_to_excalidraw
 from .exporters.obsidian import print_excalidraw_to_obsidian
 
@@ -105,15 +105,17 @@ def convert_rm(filename: Path, to, fout):
             pprint_file(f, fout)
         elif to == "blocks-data":
             pprint_file(f, fout, data=False)
+        elif to == "blocks-d3":
+            blocks = read_blocks(f)
+            d3_print_file(blocks, fout, data=False)
         elif to == "markdown":
             print_text(f, fout)
-        elif to == "markdown_with_svg":
-            with open(filename, "rb") as f2:
-                blocks = read_blocks(f2)
-                print_text_with_svg(f, fout, blocks)
+        ##elif to == "markdown_with_svg":
+        #    with open(filename, "rb") as f2:
+        #        blocks = read_blocks(f2)
+        #        print_text_with_svg(f, fout, blocks)
         elif to == "svg":
-            blocks = read_blocks(f)
-            blocks_to_svg(blocks, fout)
+            rm_to_svg(f, fout)
         elif to == "excalidraw":
             blocks = read_blocks(f)
             print(blocks_to_excalidraw_str(blocks))
@@ -124,11 +126,22 @@ def convert_rm(filename: Path, to, fout):
         elif to == "pdf":
             buf = io.StringIO()
             blocks = read_blocks(f)
-            blocks_to_svg(blocks, buf)
+            rm_to_svg(f, buf)
             buf.seek(0)
             svg_to_pdf(buf, fout)
         else:
             raise click.UsageError("Unknown format %s" % to)
+
+def d3_print_file(result, fout, data=True) -> None:
+    depth = None if data else 1
+    for el in result:
+        print(file=fout)
+        if isinstance(el,SceneTreeBlock):
+            print(crd_txt("Tree",el.tree_id))
+            print(repr(el))
+
+def crd_txt(first_text, id):
+    return first_text+'_'+str(id.part1)+"_"+str(id.part2)
 
 
 def pprint_file(f, fout, data=True) -> None:
@@ -138,6 +151,7 @@ def pprint_file(f, fout, data=True) -> None:
     for el in result:
         print(file=fout)
         pprint.pprint(el, depth=depth, stream=fout)
+        
 
 
 def convert_text(text, fout):
