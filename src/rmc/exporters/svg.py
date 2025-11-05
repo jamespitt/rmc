@@ -8,12 +8,16 @@ import logging
 import string
 from pathlib import Path
 import html
+from xml.sax.saxutils import escape
 
 from typing import Iterable
 
 from .markdown import formatted_lines
 
-from rmscene.text import TextDocument, CrdtStr
+from rmscene.text import TextDocument, CrdtStr, expand_text_items
+
+
+from rmscene.crdt_sequence import CrdtSequence
 
 from rmscene import scene_items as si
 from rmscene import (
@@ -136,6 +140,14 @@ def tree_to_svg(tree: SceneTree, output, include_template=None):
     # END notebook
     output.write('</svg>\n')
 
+def find_highest_key_lower_than(data, value:CrdtId):
+    highest_key = None
+    for key in dict(sorted(data.items())):
+        if key < value:
+            highest_key = key
+        else:
+            break
+    return highest_key
 
 def draw_group(item: si.Group, output, anchor_pos):
     anchor_x = 0.0
@@ -148,6 +160,9 @@ def draw_group(item: si.Group, output, anchor_pos):
             _logger.debug("Group anchor: %s -> y=%.1f", item.anchor_id.value, anchor_y)
         else:
             _logger.warning("Group anchor: %s is unknown!", item.anchor_id.value)
+            key = find_highest_key_lower_than(anchor_pos, item.anchor_id.value)
+            if key:
+                anchor_y = anchor_pos[key]
     output.write(f'    <g id="{item.node_id}" transform="translate({xx(anchor_x)}, {yy(anchor_y)})">\n')
     for child_id in item.children:
         child = item.children[child_id]
@@ -165,7 +180,7 @@ def draw_stroke(item: si.Line, output):
 
     # initiate the pen
     pen = Pen.create(item.tool.value, item.color.value, item.thickness_scale/10)
-    K = 5
+    K = 0.01
 
     # BEGIN stroke
     output.write(f'        <!-- Stroke tool: {item.tool.name} color: {item.color.name} thickness_scale: {item.thickness_scale} -->\n')
@@ -213,6 +228,14 @@ def draw_stroke(item: si.Line, output):
 
 def draw_text(text: si.Text, output, anchor_pos):
     doc = TextDocument.from_scene_item(text)
+    #print(repr(text))
+    #print(repr(doc))
+
+    # Expand from strings to characters
+    #char_items = CrdtSequence(expand_text_items(text.items.sequence_items()))
+    #keys = list(char_items)
+
+    #print(keys)
     output.write('    <g class="root-text" style="display:inline">\n')
 
     # add some style to get readable text
@@ -231,17 +254,18 @@ def draw_text(text: si.Text, output, anchor_pos):
     ''')
 
     y_offset = TEXT_TOP_Y
-    for fmt, line, id in formatted_lines(doc):
+    for fmt, line, ids in formatted_lines(doc):
         y_offset += LINE_HEIGHTS[fmt]
 
         xpos = text.pos_x
         ypos = text.pos_y + y_offset
         cls = fmt.name.lower()
         if line:
-            output.write(f'        <!-- Text line char_id: {id} -->\n')
-            output.write(f'        <text x="{xx(xpos)}" y="{yy(ypos)}" class="{cls}">{line.strip()}</text>\n')
+            output.write(f'        <!-- Text line char_id: {str(ids)} -->\n')
+            output.write(f'        <text x="{xx(xpos)}" y="{yy(ypos)}" class="{cls}">{escape(line.strip())}</text>\n')
 
         # Save y-coordinates of potential anchors
-        anchor_pos[id] = ypos
+        for id in ids:
+            anchor_pos[id] = ypos
 
     output.write('    </g>\n')

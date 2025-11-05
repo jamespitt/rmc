@@ -89,15 +89,15 @@ def print_text_with_svg(fin, fout, blocks):
             blocks = list([block])
             svg_doc_info = get_dimensions(blocks, 0,0)
             if not svg_doc_info.ymin is None:
-                print("ymin: " + str(svg_doc_info.ymin))
+                print("svg: " + repr(svg_doc_info))
                 y_graphics_offset = svg_doc_info.ymin
                 while len(lines) > 0 and y_text_offset<y_graphics_offset:
                     y_text_offset += height
-                    print(currline + str(y_text_offset), file=fout)
+                    print(currline, file=fout)
                     currline,height= lines.pop()
                 block_to_svg(block, fout, svg_doc_info)
 
     while len(lines) > 0:
         currline,height= lines.pop()
         y_text_offset += height
-        print(currline+str(y_text_offset), file=fout)
+        print(currline, file=fout)

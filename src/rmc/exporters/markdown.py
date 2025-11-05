@@ -2,12 +2,22 @@
 import logging
 
 from rmscene.scene_items import ParagraphStyle
-from rmscene.scene_stream import read_tree
-from rmscene.text import TextDocument
+from rmscene.scene_stream import read_tree, CrdtId
+from rmscene.text import TextDocument, expand_text_items
+from rmscene.crdt_sequence import CrdtSequence
+
+def get_ids(p):
+    ids = [p.start_id]
+    for items in p.contents:
+        for item in items.i:
+            if item and isinstance(item, CrdtId):
+                ids.append(item)
+    return ids
+
 
 # From rmscene tests: test_text_files.py
 def formatted_lines(doc):
-    return [(p.style.value, str(p), p.start_id) for p in doc.contents]
+    return [(p.style.value, str(p), get_ids(p)) for p in doc.contents]
 
 # From rmscene tests: test_text_files.py (modfied version extract_doc)
 def extract_doc(fh):
